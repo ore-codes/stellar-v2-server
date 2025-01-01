@@ -1,21 +1,25 @@
 import { Body, Controller, Post } from '@nestjs/common';
 import { AuthService } from './auth.service';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { ApiResponse, ApiTags } from '@nestjs/swagger';
 
+@ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('register')
-  async register(
-    @Body() body: { username: string; email: string; password: string },
-  ) {
-    const { username, email, password } = body;
-    return this.authService.register(username, email, password);
+  @ApiResponse({ status: 201, description: 'User successfully registered.' })
+  @ApiResponse({ status: 400, description: 'Validation error.' })
+  async register(@Body() { name, email, password }: RegisterDto) {
+    return this.authService.register(name, email, password);
   }
 
   @Post('login')
-  async login(@Body() body: { email: string; password: string }) {
-    const { email, password } = body;
+  @ApiResponse({ status: 200, description: 'User successfully logged in.' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials.' })
+  async login(@Body() { email, password }: LoginDto) {
     return this.authService.login(email, password);
   }
 }
