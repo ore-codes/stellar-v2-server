@@ -9,7 +9,7 @@ describe('AuthController', () => {
   let authService: AuthService;
 
   const mockAuthService = {
-    register: jest.fn((username, email, password) => {
+    register: jest.fn((username, email) => {
       return {
         id: 1,
         username,
@@ -17,7 +17,7 @@ describe('AuthController', () => {
         token: 'mocked-access-token',
       };
     }),
-    login: jest.fn((email, password) => {
+    login: jest.fn((email) => {
       return {
         id: 1,
         email,
@@ -48,7 +48,7 @@ describe('AuthController', () => {
   describe('register', () => {
     it('should register a user and return user data with token', async () => {
       const registerDto: RegisterDto = {
-        username: 'testuser',
+        name: 'testuser',
         email: 'test@example.com',
         password: 'Password123',
       };
@@ -56,7 +56,7 @@ describe('AuthController', () => {
       const result = await authController.register(registerDto);
 
       expect(authService.register).toHaveBeenCalledWith(
-        registerDto.username,
+        registerDto.name,
         registerDto.email,
         registerDto.password,
       );

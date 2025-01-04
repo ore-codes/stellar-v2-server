@@ -42,7 +42,7 @@ export class AuthService {
     return { user: this.excludePassword(user), token };
   }
 
-  private generateToken(userId: number, email: string) {
+  private generateToken(userId: string, email: string) {
     return this.jwtService.sign({ sub: userId, email });
   }
 
