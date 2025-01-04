@@ -1,6 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { customAlphabet } from 'nanoid';
+import { AccessToken } from 'livekit-server-sdk';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class MeetingService {
@@ -22,12 +27,43 @@ export class MeetingService {
     });
   }
 
+  async joinMeeting(userId: string, code: string) {
+    const meeting = await this.prisma.meeting.findUnique({ where: { code } });
+
+    if (!meeting) throw new NotFoundException('Meeting not found');
+
+    const existingParticipant = await this.prisma.meetingParticipant.findFirst({
+      where: { userId, meetingId: meeting.id },
+    });
+
+    if (existingParticipant) {
+      throw new ConflictException('User has already joined this meeting');
+    }
+
+    const livekitToken = new AccessToken('devkey', 'secret', {
+      identity: userId,
+    });
+    livekitToken.addGrant({ roomJoin: true, room: meeting.id });
+    const token = await livekitToken.toJwt();
+
+    const participant = await this.prisma.meetingParticipant.create({
+      data: {
+        userId,
+        meetingId: meeting.id,
+        joinTime: new Date(),
+        durationInSecs: 0,
+      },
+    });
+
+    return { participant, token };
+  }
+
   private async generateUniqueCode(): Promise<string> {
     let uniqueCode: string;
     let collision = true;
 
     while (collision) {
-      uniqueCode = customAlphabet('abcdefghijklmnopqrstuvwxyz', 9)();
+      uniqueCode = randomBytes(6).toString('hex').slice(0, 9);
       const existingMeeting = await this.prisma.meeting.findUnique({
         where: { code: uniqueCode },
       });

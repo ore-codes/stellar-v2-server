@@ -38,5 +38,5 @@ model MeetingParticipant {
   userId         String
   user           User            @relation(fields: [userId], references: [id], name: "UserParticipants")
   joinTime       DateTime
-  durationInMin  Int
+  durationInSecs  Int
 }
