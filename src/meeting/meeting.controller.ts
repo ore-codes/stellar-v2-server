@@ -27,7 +27,6 @@ export class MeetingController {
   @ApiResponse({ status: 400, description: 'Validation error.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 404, description: 'Meeting not found.' })
-  @ApiResponse({ status: 409, description: 'User already joined the meeting.' })
   joinMeeting(@Req() req: any, @Body() { code }: JoinMeetingDto) {
     const userId = req.user.userId;
     return this.meetingService.joinMeeting(userId, code);

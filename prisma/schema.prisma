@@ -39,4 +39,5 @@ model MeetingParticipant {
   user           User            @relation(fields: [userId], references: [id], name: "UserParticipants")
   joinTime       DateTime
   durationInSecs  Int
+  @@unique([userId, meetingId])
 }
