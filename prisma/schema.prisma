@@ -26,6 +26,7 @@ model Meeting {
   user          User                 @relation(fields: [userId], references: [id], name: "UserMeetings")
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
+  startTime     DateTime?
   durationInSecs Int                 @default(0)
   description   String?
   participants  MeetingParticipant[] @relation("MeetingParticipants")
@@ -38,6 +39,7 @@ model MeetingParticipant {
   userId         String
   user           User            @relation(fields: [userId], references: [id], name: "UserParticipants")
   joinTime       DateTime
-  durationInSecs  Int
+  durationInSecs Int
+  isActive       Boolean         @default(true)
   @@unique([userId, meetingId])
 }

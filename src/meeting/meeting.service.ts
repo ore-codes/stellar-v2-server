@@ -7,6 +7,21 @@ import { randomBytes } from 'crypto';
 export class MeetingService {
   constructor(private prisma: PrismaService) {}
 
+  async getMeetingByCode(code: string) {
+    const meeting = await this.prisma.meeting.findUnique({
+      where: { code },
+      include: {
+        participants: { include: { user: { select: { username: true } } } },
+      },
+    });
+
+    if (!meeting) {
+      throw new NotFoundException('Meeting not found');
+    }
+
+    return { meeting };
+  }
+
   async createMeeting(
     userId: string,
     data: { title: string; description?: string },
@@ -24,32 +39,94 @@ export class MeetingService {
   }
 
   async joinMeeting(userId: string, code: string) {
-    const meeting = await this.prisma.meeting.findUnique({ where: { code } });
+    const meeting = await this.prisma.meeting.findUnique({
+      where: { code },
+      include: { participants: true },
+    });
 
     if (!meeting) throw new NotFoundException('Meeting not found');
 
     const livekitToken = new AccessToken('devkey', 'secret', {
       identity: userId,
     });
-    livekitToken.addGrant({ roomJoin: true, room: meeting.id });
+    livekitToken.addGrant({
+      room: meeting.id,
+      roomJoin: true,
+      roomCreate: true,
+    });
     const token = await livekitToken.toJwt();
 
-    const participant =
-      (await this.prisma.meetingParticipant.findUnique({
-        where: {
-          userId_meetingId: { userId, meetingId: meeting.id },
-        },
-      })) ??
-      (await this.prisma.meetingParticipant.create({
-        data: {
-          userId,
-          meetingId: meeting.id,
-          joinTime: new Date(),
-          durationInSecs: 0,
-        },
-      }));
+    const participant = await this.prisma.meetingParticipant.upsert({
+      where: { userId_meetingId: { userId, meetingId: meeting.id } },
+      update: {
+        joinTime: new Date(),
+        isActive: true,
+      },
+      create: {
+        userId,
+        meetingId: meeting.id,
+        joinTime: new Date(),
+        durationInSecs: 0,
+        isActive: true,
+      },
+    });
 
-    return { participant, token };
+    if (meeting.startTime === null && meeting.participants.length === 0) {
+      await this.prisma.meeting.update({
+        where: { id: meeting.id },
+        data: { startTime: new Date() },
+      });
+    }
+
+    const meetingWithParticipants = await this.prisma.meeting.findUnique({
+      where: { id: meeting.id },
+      include: {
+        participants: { include: { user: { select: { username: true } } } },
+      },
+    });
+
+    return { participant, token, meeting: meetingWithParticipants };
+  }
+
+  async leaveMeeting(userId: string, code: string) {
+    const meeting = await this.prisma.meeting.findUnique({
+      where: { code },
+      include: { participants: true },
+    });
+
+    if (!meeting) throw new NotFoundException('Meeting not found');
+
+    const participant = await this.prisma.meetingParticipant.findUnique({
+      where: { userId_meetingId: { userId, meetingId: meeting.id } },
+    });
+
+    if (!participant) throw new NotFoundException('Participant not found');
+
+    const currentTime = new Date();
+    const durationInSecs =
+      (currentTime.getTime() - participant.joinTime.getTime()) / 1000;
+
+    await this.prisma.meetingParticipant.update({
+      where: { id: participant.id },
+      data: {
+        durationInSecs: Math.floor(durationInSecs),
+        isActive: false,
+      },
+    });
+
+    const activeParticipants = await this.prisma.meetingParticipant.findMany({
+      where: { meetingId: meeting.id, isActive: true },
+    });
+
+    if (activeParticipants.length === 0 && meeting.startTime) {
+      const meetingDuration =
+        (currentTime.getTime() - meeting.startTime.getTime()) / 1000;
+
+      await this.prisma.meeting.update({
+        where: { id: meeting.id },
+        data: { durationInSecs: Math.floor(meetingDuration) },
+      });
+    }
   }
 
   private async generateUniqueCode(): Promise<string> {
