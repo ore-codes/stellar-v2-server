@@ -19,7 +19,7 @@ export class AuthController {
   @Post('login')
   @HttpCode(200)
   @ApiResponse({ status: 200, description: 'User successfully logged in.' })
-  @ApiResponse({ status: 401, description: 'Invalid credentials.' })
+  @ApiResponse({ status: 400, description: 'Invalid credentials.' })
   async login(@Body() { email, password }: LoginDto) {
     return this.authService.login(email, password);
   }
