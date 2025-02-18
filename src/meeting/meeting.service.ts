@@ -2,10 +2,14 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { AccessToken } from 'livekit-server-sdk';
 import { randomBytes } from 'crypto';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class MeetingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private config: ConfigService,
+  ) {}
 
   async getMeetingByCode(code: string) {
     const meeting = await this.prisma.meeting.findUnique({
@@ -43,18 +47,21 @@ export class MeetingService {
       where: { code },
       include: { participants: true },
     });
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
 
     if (!meeting) throw new NotFoundException('Meeting not found');
 
-    const livekitToken = new AccessToken('devkey', 'secret', {
-      identity: userId,
-    });
-    livekitToken.addGrant({
+    const liveKitToken = new AccessToken(
+      this.config.get<string>('liveKit.apiKey'),
+      this.config.get<string>('liveKit.secret'),
+      { identity: userId, name: user.username },
+    );
+    liveKitToken.addGrant({
       room: meeting.id,
       roomJoin: true,
       roomCreate: true,
     });
-    const token = await livekitToken.toJwt();
+    const token = await liveKitToken.toJwt();
 
     const participant = await this.prisma.meetingParticipant.upsert({
       where: { userId_meetingId: { userId, meetingId: meeting.id } },
