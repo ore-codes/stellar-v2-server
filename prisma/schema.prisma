@@ -12,8 +12,6 @@ model User {
   username     String
   email        String               @unique
   password     String
-  meetings     Meeting[]            @relation("UserMeetings")
-  participants MeetingParticipant[] @relation("UserParticipants")
   createdAt    DateTime             @default(now())
   updatedAt    DateTime             @updatedAt
 }
@@ -23,7 +21,6 @@ model Meeting {
   title         String
   code          String               @unique
   userId        String
-  user          User                 @relation(fields: [userId], references: [id], name: "UserMeetings")
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
   startTime     DateTime?
@@ -37,7 +34,6 @@ model MeetingParticipant {
   meetingId      String
   meeting        Meeting         @relation(fields: [meetingId], references: [id], name: "MeetingParticipants")
   userId         String
-  user           User            @relation(fields: [userId], references: [id], name: "UserParticipants")
   joinTime       DateTime
   durationInSecs Int
   isActive       Boolean         @default(true)
